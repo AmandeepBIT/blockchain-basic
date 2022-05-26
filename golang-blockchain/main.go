@@ -39,11 +39,12 @@ func getBlocks(w http.ResponseWriter, r *http.Request) {
 	iter.Database.Close()
 }
 
-func viewCurrentBlock(w http.ResponseWriter, r *http.Request) {
+func getLastBlocks(w http.ResponseWriter, r *http.Request) {
 
-	iter := blockchain.InitBlockChain()
+	iter := blockchain.InitBlockChain().Iterator()
+	lastBlock := iter.Next()
 	setupHeader(w)
-	json.NewEncoder(w).Encode(iter)
+	json.NewEncoder(w).Encode(lastBlock)
 	iter.Database.Close()
 }
 
@@ -75,6 +76,6 @@ func main() {
 	router.HandleFunc("/", checkServer)
 	router.HandleFunc("/addblock", createBlock).Methods("POST")
 	router.HandleFunc("/getblocks", getBlocks).Methods("GET")
-	router.HandleFunc("/viewCurrentBlock", viewCurrentBlock).Methods("GET")
+	router.HandleFunc("/viewCurrentBlock", getLastBlocks).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
