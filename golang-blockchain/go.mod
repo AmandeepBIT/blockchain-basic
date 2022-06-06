@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/dgraph-io/badger v1.5.4
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 )
 
