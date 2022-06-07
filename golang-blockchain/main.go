@@ -15,7 +15,7 @@ import (
 type BlockSuccess struct {
 	Message string `json:"message"`
 }
-type ServerSetup struct {
+type Message struct {
 	Status string
 }
 
@@ -50,7 +50,7 @@ func getLastBlocks(w http.ResponseWriter, r *http.Request) {
 
 func checkServer(w http.ResponseWriter, r *http.Request) {
 
-	var newEmployee = ServerSetup{Status: "Server is in running state"}
+	var newEmployee = Message{Status: "Server is in running state"}
 	setupHeader(w)
 	json.NewEncoder(w).Encode(newEmployee)
 }
@@ -70,6 +70,23 @@ func setupHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
+func enryptFile(w http.ResponseWriter, r *http.Request) {
+
+	setupHeader(w)
+	blockchain.CreateChunksAndEncrypt()
+	files := blockchain.ReadDir(blockchain.EncryptedLoc)
+	permString := fmt.Sprintf("%v", files)
+	json.NewEncoder(w).Encode(Message{Status: permString})
+}
+
+func deryptFile(w http.ResponseWriter, r *http.Request) {
+
+	setupHeader(w)
+	blockchain.ConvertDecryptFiles()
+	files := blockchain.ReadFile(blockchain.DecryptedLoc + "final.txt")
+	w.Write(files)
+}
+
 func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -77,5 +94,7 @@ func main() {
 	router.HandleFunc("/addblock", createBlock).Methods("POST")
 	router.HandleFunc("/getblocks", getBlocks).Methods("GET")
 	router.HandleFunc("/viewCurrentBlock", getLastBlocks).Methods("GET")
+	router.HandleFunc("/enryptFile", enryptFile).Methods("GET")
+	router.HandleFunc("/deryptFile", deryptFile).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

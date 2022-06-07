@@ -7,7 +7,11 @@ import (
 )
 
 const (
-	dbPath = "./database"
+	dbPath       = "./database"
+	cryptoKey    = "teteteteteetesdsdsdsdsdt"
+	fileNameC    = "./test.txt"
+	EncryptedLoc = "./chunks/encrypted/"
+	DecryptedLoc = "./chunks/decrypted/"
 )
 
 type BlockChain struct {
