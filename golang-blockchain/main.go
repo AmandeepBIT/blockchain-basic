@@ -2,50 +2,17 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
 
 	"golang-blockchain/blockchain"
 
 	"github.com/gorilla/mux"
 )
 
-type BlockSuccess struct {
-	Message string `json:"message"`
-}
 type Message struct {
 	Status string
-}
-
-func getBlocks(w http.ResponseWriter, r *http.Request) {
-
-	var tmpRecords []blockchain.Block
-	iter := blockchain.InitBlockChain().Iterator()
-
-	for {
-		block := iter.Next()
-
-		pow := blockchain.NewProof(block)
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
-		tmpRecords = append(tmpRecords, *block)
-		if len(block.PrevHash) == 0 {
-			break
-		}
-	}
-	setupHeader(w)
-	json.NewEncoder(w).Encode(tmpRecords)
-	iter.Database.Close()
-}
-
-func getLastBlocks(w http.ResponseWriter, r *http.Request) {
-
-	iter := blockchain.InitBlockChain().Iterator()
-	lastBlock := iter.Next()
-	setupHeader(w)
-	json.NewEncoder(w).Encode(lastBlock)
-	iter.Database.Close()
 }
 
 func checkServer(w http.ResponseWriter, r *http.Request) {
@@ -55,15 +22,6 @@ func checkServer(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newEmployee)
 }
 
-func createBlock(w http.ResponseWriter, r *http.Request) {
-	setupHeader(w)
-	var inst = blockchain.InitBlockChain()
-	data := r.FormValue("data")
-	inst.AddBlock(data)
-	json.NewEncoder(w).Encode(BlockSuccess{Message: "Block has been added"})
-	inst.Database.Close()
-}
-
 func setupHeader(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -71,30 +29,52 @@ func setupHeader(w http.ResponseWriter) {
 }
 
 func enryptFile(w http.ResponseWriter, r *http.Request) {
-
+	filename := mux.Vars(r)["filename"]
 	setupHeader(w)
-	blockchain.CreateChunksAndEncrypt()
-	files := blockchain.ReadDir(blockchain.EncryptedLoc)
-	permString := fmt.Sprintf("%v", files)
-	json.NewEncoder(w).Encode(Message{Status: permString})
+	blockchain.CreateChunksAndEncrypt(filename)
+	inst := blockchain.GetDBinstacnce()
+	data := inst.GetEncryptedFiles(filename)
+	inst.Database.Close()
+	json.NewEncoder(w).Encode(data)
+}
+
+func getChunkByKey(w http.ResponseWriter, r *http.Request) {
+	key := mux.Vars(r)["key"]
+	setupHeader(w)
+	inst := blockchain.GetDBinstacnce()
+	data := inst.GetChunkByKey(key)
+	inst.Database.Close()
+	w.Write([]byte(data))
+}
+
+func getChunkByFilename(w http.ResponseWriter, r *http.Request) {
+	filename := mux.Vars(r)["filename"]
+	setupHeader(w)
+	inst := blockchain.GetDBinstacnce()
+	data := inst.GetChunksByPrefix(filename)
+	inst.Database.Close()
+	json.NewEncoder(w).Encode(data)
 }
 
 func deryptFile(w http.ResponseWriter, r *http.Request) {
 
+	filename := mux.Vars(r)["filename"]
 	setupHeader(w)
-	blockchain.ConvertDecryptFiles()
+	inst := blockchain.GetDBinstacnce()
+	inst.ConvertDecryptFiles(filename)
 	files := blockchain.ReadFile(blockchain.DecryptedLoc + "final.txt")
+	inst.Database.Close()
 	w.Write(files)
+	os.Remove(blockchain.DecryptedLoc + "final.txt")
 }
 
 func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", checkServer)
-	router.HandleFunc("/addblock", createBlock).Methods("POST")
-	router.HandleFunc("/getblocks", getBlocks).Methods("GET")
-	router.HandleFunc("/viewCurrentBlock", getLastBlocks).Methods("GET")
-	router.HandleFunc("/enryptFile", enryptFile).Methods("GET")
-	router.HandleFunc("/deryptFile", deryptFile).Methods("GET")
+	router.HandleFunc("/enryptFile/{filename}", enryptFile).Methods("GET")
+	router.HandleFunc("/getChunkByKey/{key}", getChunkByKey).Methods("GET")
+	router.HandleFunc("/getChunkByFilename/{filename}", getChunkByFilename).Methods("GET")
+	router.HandleFunc("/deryptFile/{filename}", deryptFile).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
